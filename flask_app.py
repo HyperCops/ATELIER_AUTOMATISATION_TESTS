@@ -11,6 +11,7 @@ if not os.path.exists(storage.DB_FILE):
 
 STORES_MAP = {}
 
+# Récupération des magasins au démarrage (utile pour les filtres)
 try:
     r = requests.get("https://www.cheapshark.com/api/1.0/stores", timeout=5)
     if r.status_code == 200:
@@ -30,61 +31,37 @@ def dashboard():
 
 @app.route('/search', methods=['GET', 'POST'])
 def search_games():
-    games = []
+    deals = []
     trending_deals = []
     
     if request.method == 'POST':
+        # --- NOUVEAU : Récupération des Filtres Avancés ---
         title = request.form.get('title')
+        max_price = request.form.get('max_price')
+        store_id = request.form.get('store_id')
+        sort_by = request.form.get('sort_by')
+        min_metacritic = request.form.get('min_metacritic')
+        
+        # Construction des paramètres pour l'API
+        params = {"limit": 24} # On affiche 24 résultats max
+        if title: params['title'] = title
+        if max_price: params['upperPrice'] = max_price
+        if store_id: params['storeID'] = store_id
+        if sort_by: params['sortBy'] = sort_by
+        if min_metacritic: params['metacritic'] = min_metacritic
+        
         try:
-            r = requests.get("https://www.cheapshark.com/api/1.0/games", params={"title": title, "limit": 20}, timeout=5)
+            # On utilise maintenant /deals pour profiter des filtres et des notes
+            r = requests.get("https://www.cheapshark.com/api/1.0/deals", params=params, timeout=5)
             if r.status_code == 200:
-                games = r.json()
+                deals = r.json()
         except:
             pass
     else:
-        # NOUVEAU : Si aucune recherche, on récupère les meilleures promos du moment !
+        # Offres populaires par défaut
         try:
             r = requests.get("https://www.cheapshark.com/api/1.0/deals", params={"sortBy": "Deal Rating", "limit": 8}, timeout=5)
             if r.status_code == 200:
                 trending_deals = r.json()
         except:
             pass
-
-    return render_template('search.html', games=games, trending=trending_deals)
-
-@app.route('/game/<game_id>')
-def game_details(game_id):
-    game_data = None
-    steam_data = None
-    
-    try:
-        r = requests.get("https://www.cheapshark.com/api/1.0/games", params={"id": game_id}, timeout=5)
-        if r.status_code == 200:
-            data = r.json()
-            if data: 
-                game_data = data
-                steam_id = game_data.get('info', {}).get('steamAppID')
-                if steam_id:
-                    steam_id_str = str(steam_id) 
-                    r_steam = requests.get(f"https://store.steampowered.com/api/appdetails?appids={steam_id_str}", timeout=3)
-                    
-                    if r_steam.status_code == 200:
-                        steam_json = r_steam.json()
-                        if steam_json and steam_json.get(steam_id_str, {}).get('success'):
-                            steam_data = steam_json.get(steam_id_str, {}).get('data')
-    except Exception as e:
-        print(f"Erreur : {e}")
-    
-    return render_template('game_details.html', game=game_data, stores=STORES_MAP, steam_data=steam_data)
-
-@app.route('/run')
-def trigger_run():
-    summary = run_all_tests()
-    return jsonify(summary)
-
-@app.route('/health')
-def health():
-    return jsonify({"status": "ok", "api": "CheapShark App"})
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
