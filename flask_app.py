@@ -1,139 +1,123 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Recherche de Jeux Avancée</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/darkly/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: radial-gradient(circle at top, #2b2b45, #12121c);
-            background-attachment: fixed;
-            min-height: 100vh;
-        }
-        .navbar {
-            background: rgba(26, 26, 46, 0.9) !important;
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .game-card {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-        }
-        .game-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
-            border-color: #0dcaf0;
-        }
-        .hero-banner {
-            background: linear-gradient(135deg, rgba(13,202,240,0.1) 0%, rgba(26,26,46,0) 100%);
-            border-radius: 15px;
-            padding: 30px;
-            border: 1px solid rgba(13,202,240,0.2);
-        }
-        .score-badge {
-            font-size: 0.8rem;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-        }
-    </style>
-</head>
-<body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
-  <div class="container">
-    <a class="navbar-brand fw-bold" href="/">🦈 CheapShark App</a>
-    <div class="navbar-nav">
-        <a class="nav-link" href="/">Accueil</a>
-        <a class="nav-link active" href="/search">Recherche</a>
-        <a class="nav-link" href="/dashboard">Dashboard Tests</a>
-    </div>
-  </div>
-</nav>
+import os
+import requests
+import traceback
+from flask import Flask, render_template, jsonify, request
+import storage
+from tester.runner import run_all_tests
 
-<div class="container pb-5">
+app = Flask(__name__)
 
-    {% if api_error %}
-        <div class="alert alert-danger shadow-sm mb-4">
-            <strong>Attention :</strong> Problème de communication avec CheapShark ({{ api_error }}). Les données peuvent être incomplètes.
-        </div>
-    {% endif %}
-    
-    <div class="hero-banner mb-5">
-        <h3 class="mb-4 text-info fw-bold text-center">Recherche Avancée</h3>
-        <form method="POST" action="/search" class="row g-3">
-            <div class="col-md-12">
-                <input type="text" name="title" class="form-control form-control-lg bg-dark text-light border-secondary" placeholder="Titre du jeu (ex: Batman, Elden Ring)...">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label text-muted small">Prix Max ($)</label>
-                <input type="number" step="1" name="max_price" class="form-control bg-dark text-light border-secondary" placeholder="ex: 15">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label text-muted small">Boutique</label>
-                <select name="store_id" class="form-select bg-dark text-light border-secondary">
-                    <option value="">Toutes les boutiques</option>
-                    {% for sid, sname in stores.items() %}
-                        <option value="{{ sid }}">{{ sname }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label text-muted small">Trier par</label>
-                <select name="sort_by" class="form-select bg-dark text-light border-secondary">
-                    <option value="Deal Rating">Meilleure offre (Défaut)</option>
-                    <option value="Price">Prix le plus bas</option>
-                    <option value="Savings">Plus grosse réduction</option>
-                    <option value="Metacritic">Note Metacritic</option>
-                    <option value="Release">Date de sortie</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label text-muted small">Score Metacritic Min.</label>
-                <input type="number" name="min_metacritic" class="form-control bg-dark text-light border-secondary" placeholder="ex: 80">
-            </div>
-            <div class="col-md-12 text-center mt-4">
-                <button type="submit" class="btn btn-info btn-lg fw-bold px-5">Filtrer les offres</button>
-            </div>
-        </form>
-    </div>
+# Initialisation sécurisée de la BDD
+try:
+    if not os.path.exists(storage.DB_FILE):
+        storage.init_db()
+except Exception as e:
+    print(f"Erreur initialisation DB: {e}")
 
-    {% set results = deals if deals else trending %}
+STORES_MAP = {}
 
-    {% if results %}
-        <h4 class="mb-4 border-bottom border-secondary pb-2">
-            {% if is_post and deals %} Résultats de la recherche ({{ deals|length }}) {% else %} 🔥 Offres populaires du moment {% endif %}
-        </h4>
+# Récupération sécurisée des magasins
+try:
+    r = requests.get("https://www.cheapshark.com/api/1.0/stores", timeout=5)
+    if r.status_code == 200:
+        for store in r.json():
+            STORES_MAP[store['storeID']] = store['storeName']
+except:
+    pass
+
+@app.route("/")
+def home():
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        # Au lieu de planter avec une Erreur 500, on affiche le problème !
+        return f"""
+        <h3 style='color:red;'>Erreur sur la page d'accueil !</h3>
+        <p><b>Détail de l'erreur :</b> {e}</p>
+        <p><b>Solution :</b> Vérifiez que vous avez bien créé un fichier nommé exactement <code>index.html</code> (tout en minuscules) et qu'il est bien placé à l'intérieur du dossier <code>templates/</code>.</p>
+        """
+
+@app.route('/dashboard')
+def dashboard():
+    try:
+        runs = storage.get_runs()
+        return render_template('dashboard.html', runs=runs)
+    except Exception as e:
+        return f"<h3>Erreur Dashboard :</h3><p>{e}</p>"
+
+@app.route('/search', methods=['GET', 'POST'])
+def search_games():
+    try:
+        deals = []
+        trending_deals = []
         
-        <div class="row">
-            {% for deal in results %}
-            <div class="col-md-3 mb-4">
-                <div class="card h-100 game-card text-center position-relative">
-                    
-                    {% set savings = deal.get('savings') %}
-                    {% if savings and savings != '0.000000' %}
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger fs-6 border border-dark">
-                            -{{ (savings|string).split('.')[0] }}%
-                        </span>
-                    {% endif %}
+        if request.method == 'POST':
+            title = request.form.get('title')
+            max_price = request.form.get('max_price')
+            store_id = request.form.get('store_id')
+            sort_by = request.form.get('sort_by')
+            min_metacritic = request.form.get('min_metacritic')
+            
+            params = {"limit": 24}
+            if title: params['title'] = title
+            if max_price: params['upperPrice'] = max_price
+            if store_id: params['storeID'] = store_id
+            if sort_by: params['sortBy'] = sort_by
+            if min_metacritic: params['metacritic'] = min_metacritic
+            
+            try:
+                r = requests.get("https://www.cheapshark.com/api/1.0/deals", params=params, timeout=5)
+                if r.status_code == 200:
+                    deals = r.json()
+            except:
+                pass
+        else:
+            try:
+                r = requests.get("https://www.cheapshark.com/api/1.0/deals", params={"sortBy": "Deal Rating", "limit": 8}, timeout=5)
+                if r.status_code == 200:
+                    trending_deals = r.json()
+            except:
+                pass
 
-                    <img src="{{ deal.get('thumb', '') }}" class="card-img-top mx-auto mt-3 rounded" alt="Cover" style="height: 120px; width: auto; max-width: 90%; object-fit: contain;">
-                    
-                    <div class="card-body d-flex flex-column">
-                        <h6 class="card-title text-light mb-3">{{ deal.get('title', 'Titre inconnu') }}</h6>
-                        
-                        <div class="mb-3">
-                            {% if deal.get('metacriticScore') and deal.get('metacriticScore') != '0' %}
-                                {% set meta = deal.get('metacriticScore')|int %}
-                                {% set m_color = 'success' if meta >= 80 else ('warning' if meta >= 60 else 'danger') %}
-                                <span class="badge bg-{{ m_color }} score-badge me-1" title="Note Metacritic">Ⓜ️ {{ meta }}</span>
-                            {% endif %}
-                            
-                            {% if deal.get('steamRatingPercent') and deal.get('steamRatingPercent') != '0' %}
-                                {% set steam = deal.get('steamRatingPercent')|int %}
-                                {% set s_color = 'success' if steam >= 80 else ('warning' if steam >= 60 else 'danger') %}
-                                <span class="badge bg-{{ s_color }} score-badge" title="Avis positifs Steam">💨 {{ steam }}%</span>
-                            {% endif %}
-                        </div>
+        return render_template('search.html', deals=deals, trending=trending_deals, stores=STORES_MAP)
+    
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        return f"<h3>Erreur dans la recherche :</h3><pre>{error_trace}</pre>"
 
-                        <div class="
+@app.route('/game/<game_id>')
+def game_details(game_id):
+    try:
+        game_data = None
+        steam_data = None
+        
+        r = requests.get("https://www.cheapshark.com/api/1.0/games", params={"id": game_id}, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            if data: 
+                game_data = data
+                steam_id = game_data.get('info', {}).get('steamAppID')
+                if steam_id:
+                    steam_id_str = str(steam_id) 
+                    r_steam = requests.get(f"https://store.steampowered.com/api/appdetails?appids={steam_id_str}", timeout=3)
+                    
+                    if r_steam.status_code == 200:
+                        steam_json = r_steam.json()
+                        if steam_json and steam_json.get(steam_id_str, {}).get('success'):
+                            steam_data = steam_json.get(steam_id_str, {}).get('data')
+        
+        return render_template('game_details.html', game=game_data, stores=STORES_MAP, steam_data=steam_data)
+    except Exception as e:
+        return f"<h3>Erreur sur les détails du jeu :</h3><p>{e}</p>"
+
+@app.route('/run')
+def trigger_run():
+    summary = run_all_tests()
+    return jsonify(summary)
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "ok", "api": "CheapShark App"})
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
