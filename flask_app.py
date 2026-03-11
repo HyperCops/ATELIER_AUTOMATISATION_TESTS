@@ -1,6 +1,5 @@
 import os
 from flask import Flask, render_template, jsonify
-# On importe les modules de ton projet que tu as créés
 import storage
 from tester.runner import run_all_tests
 
