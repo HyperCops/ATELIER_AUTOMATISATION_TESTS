@@ -26,7 +26,7 @@
     {% if game %}
     <div class="row mb-4">
         <div class="col-md-12 text-center">
-            <h1 class="text-info display-4">{{ game['info']['title'] }}</h1>
+            <h1 class="text-info display-4">{{ game.get('info', {}).get('title', 'Titre Inconnu') }}</h1>
         </div>
     </div>
 
@@ -34,20 +34,22 @@
         <div class="col-md-6 mb-4">
             <div class="card bg-secondary border-light p-3 h-100">
                 {% if steam_data %}
-                    {% if steam_data.movies %}
+                    
+                    {% if steam_data.get('movies') and steam_data['movies']|length > 0 %}
                         <h5 class="text-light mb-3">Bande-annonce</h5>
                         <video class="w-100 rounded mb-4" controls>
-                            <source src="{{ steam_data.movies[0].webm.max }}" type="video/webm">
+                            <source src="{{ steam_data['movies'][0].get('webm', {}).get('max', '') }}" type="video/webm">
                             Votre navigateur ne supporte pas la vidéo.
                         </video>
                     {% endif %}
                     
-                    {% if steam_data.screenshots %}
+                    {% if steam_data.get('screenshots') and steam_data['screenshots']|length > 0 %}
                         <h5 class="text-light mb-3">Images du jeu</h5>
                         <div id="gameCarousel" class="carousel slide" data-bs-ride="carousel">
                             <div class="carousel-inner rounded">
-                                {% for screenshot in steam_data.screenshots[:5] %} <div class="carousel-item {% if loop.first %}active{% endif %}">
-                                        <img src="{{ screenshot.path_full }}" class="d-block w-100" alt="Screenshot">
+                                {% for screenshot in steam_data['screenshots'][:5] %}
+                                    <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                        <img src="{{ screenshot.get('path_full', '') }}" class="d-block w-100" alt="Screenshot">
                                     </div>
                                 {% endfor %}
                             </div>
@@ -59,9 +61,10 @@
                             </button>
                         </div>
                     {% endif %}
+
                 {% else %}
                     <div class="text-center mt-5">
-                        <img src="{{ game['info']['thumb'] }}" class="img-fluid rounded" style="max-height: 300px;" alt="Cover">
+                        <img src="{{ game.get('info', {}).get('thumb', '') }}" class="img-fluid rounded" style="max-height: 300px;" alt="Cover">
                         <p class="text-muted mt-3">Images HD non disponibles pour ce titre.</p>
                     </div>
                 {% endif %}
@@ -72,7 +75,7 @@
             <div class="card bg-dark border-success mb-4">
                 <div class="card-body text-center">
                     <h5 class="text-muted">Prix le plus bas historique :</h5>
-                    <h2 class="text-success">{{ game['cheapestPriceEver']['price']|to_eur }} €</h2>
+                    <h2 class="text-success">{{ game.get('cheapestPriceEver', {}).get('price', '0')|to_eur }} €</h2>
                 </div>
             </div>
 
@@ -87,21 +90,21 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for deal in game['deals'] %}
+                        {% for deal in game.get('deals', []) %}
                         <tr>
                             <td><strong>{{ stores.get(deal['storeID'], 'Boutique n°' ~ deal['storeID']) }}</strong></td>
                             
                             <td>
-                                {% if deal['retailPrice'] != deal['price'] %}
-                                    <s class="text-muted fs-6">{{ deal['retailPrice']|to_eur }} €</s><br>
-                                    <strong class="text-success fs-4">{{ deal['price']|to_eur }} €</strong>
+                                {% if deal.get('retailPrice') != deal.get('price') %}
+                                    <s class="text-muted fs-6">{{ deal.get('retailPrice', '0')|to_eur }} €</s><br>
+                                    <strong class="text-success fs-4">{{ deal.get('price', '0')|to_eur }} €</strong>
                                 {% else %}
-                                    <strong class="fs-5">{{ deal['retailPrice']|to_eur }} €</strong>
+                                    <strong class="fs-5">{{ deal.get('retailPrice', '0')|to_eur }} €</strong>
                                 {% endif %}
                             </td>
                             
                             <td>
-                                <a href="https://www.cheapshark.com/redirect?dealID={{ deal['dealID'] }}" target="_blank" class="btn btn-info fw-bold">
+                                <a href="https://www.cheapshark.com/redirect?dealID={{ deal.get('dealID') }}" target="_blank" class="btn btn-info fw-bold">
                                     Acheter ↗
                                 </a>
                             </td>
@@ -113,7 +116,11 @@
         </div>
     </div>
     {% else %}
-        <div class="alert alert-danger">Erreur : Impossible de charger les détails du jeu.</div>
+        <div class="alert alert-danger mt-4 text-center">
+            <h4>Erreur lors du chargement</h4>
+            <p>Les détails de ce jeu n'ont pas pu être récupérés auprès de l'API. Réessayez dans quelques secondes.</p>
+            <a href="/search" class="btn btn-secondary mt-2">Retour à la recherche</a>
+        </div>
     {% endif %}
 </div>
 </body>
