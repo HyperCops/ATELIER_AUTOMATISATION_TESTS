@@ -10,8 +10,8 @@ if not os.path.exists(storage.DB_FILE):
     storage.init_db()
 
 STORES_MAP = {}
-EXCHANGE_RATE = 0.92 
 
+# Récupération de la liste des magasins au démarrage
 try:
     r = requests.get("https://www.cheapshark.com/api/1.0/stores", timeout=5)
     if r.status_code == 200:
@@ -19,22 +19,6 @@ try:
             STORES_MAP[store['storeID']] = store['storeName']
 except:
     pass
-
-try:
-    r_rate = requests.get("https://open.er-api.com/v6/latest/USD", timeout=5)
-    if r_rate.status_code == 200:
-        EXCHANGE_RATE = r_rate.json()['rates']['EUR']
-except:
-    pass
-
-@app.template_filter('to_eur')
-def to_eur_filter(usd_price):
-    try:
-        eur_price = float(usd_price) * EXCHANGE_RATE
-        # Formate avec 2 chiffres après la virgule, et remplace le point par une virgule
-        return f"{eur_price:.2f}".replace('.', ',')
-    except:
-        return str(usd_price).replace('.', ',')
 
 @app.route("/")
 def home():
