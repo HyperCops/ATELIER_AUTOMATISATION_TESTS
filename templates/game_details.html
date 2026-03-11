@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Détails du jeu</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/darkly/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+  <div class="container">
+    <a class="navbar-brand" href="/">🦈 CheapShark App</a>
+    <div class="navbar-nav">
+        <a class="nav-link" href="/">Accueil</a>
+        <a class="nav-link" href="/search">Recherche</a>
+        <a class="nav-link" href="/dashboard">Dashboard Tests</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+    <div class="mb-3">
+        <a href="javascript:history.back()" class="btn btn-secondary btn-sm">← Retour aux résultats</a>
+    </div>
+
+    {% if game %}
+    <div class="row">
+        <div class="col-md-4 text-center mb-4">
+            <div class="card bg-secondary border-light">
+                <div class="card-body">
+                    <img src="{{ game['info']['thumb'] }}" class="img-fluid rounded mb-3" alt="Cover">
+                    <h3 class="text-info">{{ game['info']['title'] }}</h3>
+                    <hr>
+                    <p class="mb-1">Prix le plus bas historique :</p>
+                    <h4 class="text-success">{{ game['cheapestPriceEver']['price'] }} $</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <h4 class="mb-3">Offres actuelles sur les boutiques</h4>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover table-bordered text-center align-middle">
+                    <thead class="table-primary">
+                        <tr>
+                            <th>Magasin</th>
+                            <th>Prix d'origine</th>
+                            <th>Prix Promo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for deal in game['deals'] %}
+                        <tr>
+                            <td><strong>{{ stores.get(deal['storeID'], 'Boutique n°' ~ deal['storeID']) }}</strong></td>
+                            
+                            <td>
+                                {% if deal['retailPrice'] != deal['price'] %}
+                                    <s class="text-muted">{{ deal['retailPrice'] }} $</s>
+                                {% else %}
+                                    {{ deal['retailPrice'] }} $
+                                {% endif %}
+                            </td>
+                            
+                            <td>
+                                <strong class="text-success fs-5">{{ deal['price'] }} $</strong>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+        <div class="alert alert-danger">Erreur : Impossible de charger les détails du jeu.</div>
+    {% endif %}
+</div>
+</body>
+</html>
