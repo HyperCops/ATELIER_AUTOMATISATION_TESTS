@@ -37,7 +37,8 @@
                     
                     {% if steam_data.get('movies') and steam_data['movies']|length > 0 %}
                         <h5 class="text-light mb-3">Bande-annonce</h5>
-                        <video class="w-100 rounded mb-4" controls>
+                        <video class="w-100 rounded mb-4" controls poster="{{ steam_data['movies'][0].get('thumbnail', '') }}">
+                            <source src="{{ steam_data['movies'][0].get('mp4', {}).get('max', '') }}" type="video/mp4">
                             <source src="{{ steam_data['movies'][0].get('webm', {}).get('max', '') }}" type="video/webm">
                             Votre navigateur ne supporte pas la vidéo.
                         </video>
@@ -74,8 +75,9 @@
         <div class="col-md-6">
             <div class="card bg-dark border-success mb-4">
                 <div class="card-body text-center">
-                    <h5 class="text-muted">Prix le plus bas historique :</h5>
-                    <h2 class="text-success">{{ game.get('cheapestPriceEver', {}).get('price', '0')|to_eur }} €</h2>
+                    <h5 class="text-muted mb-1">Prix le plus bas historique :</h5>
+                    <h2 class="text-success mb-3">{{ game.get('cheapestPriceEver', {}).get('price', '0')|to_eur }} €</h2>
+                    <small class="text-muted fst-italic">*Prix convertis depuis le dollar américain. Le prix exact en Europe peut varier selon la boutique.</small>
                 </div>
             </div>
 
