@@ -11,6 +11,25 @@ app = Flask(__name__)
 def consignes():
      return render_template('consignes.html')
 
+@app.route('/dashboard')
+def dashboard():
+    runs = storage.get_runs()
+    return render_template('dashboard.html', runs=runs)
+
+@app.route('/run')
+def trigger_run():
+    # Déclenche un test, renvoie du JSON (Bonus export téléchargeable)
+    summary = run_all_tests()
+    return jsonify(summary)
+
+@app.route('/health')
+def health():
+    # Bonus Endpoint /health
+    return jsonify({"status": "ok", "api": "CheapShark Testing App"})
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
 if __name__ == "__main__":
     # utile en local uniquement
     app.run(host="0.0.0.0", port=5000, debug=True)
