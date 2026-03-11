@@ -6,15 +6,12 @@ from tester.runner import run_all_tests
 
 app = Flask(__name__)
 
-# Initialiser la base de données SQLite au démarrage
 if not os.path.exists(storage.DB_FILE):
     storage.init_db()
 
-# --- 1. INITIALISATION DES DONNÉES GLOBALES ---
 STORES_MAP = {}
-EXCHANGE_RATE = 0.92 # Taux par défaut (au cas où l'API de change plante)
+EXCHANGE_RATE = 0.92 
 
-# Récupération des magasins
 try:
     r = requests.get("https://www.cheapshark.com/api/1.0/stores", timeout=5)
     if r.status_code == 200:
@@ -23,7 +20,6 @@ try:
 except:
     pass
 
-# Récupération du taux de change direct USD -> EUR
 try:
     r_rate = requests.get("https://open.er-api.com/v6/latest/USD", timeout=5)
     if r_rate.status_code == 200:
@@ -31,7 +27,6 @@ try:
 except:
     pass
 
-# --- 2. FILTRE JINJA POUR LA CONVERSION EN EUROS ---
 @app.template_filter('to_eur')
 def to_eur_filter(usd_price):
     try:
@@ -40,7 +35,6 @@ def to_eur_filter(usd_price):
     except:
         return usd_price
 
-# --- 3. ROUTES DE L'APPLICATION ---
 @app.route("/")
 def home():
     return render_template('index.html')
@@ -56,35 +50,38 @@ def search_games():
     if request.method == 'POST':
         title = request.form.get('title')
         try:
-            r = requests.get("https://www.cheapshark.com/api/1.0/games", params={"title": title, "limit": 20})
+            r = requests.get("https://www.cheapshark.com/api/1.0/games", params={"title": title, "limit": 20}, timeout=5)
             if r.status_code == 200:
                 games = r.json()
         except:
             pass
-
     return render_template('search.html', games=games)
 
 @app.route('/game/<game_id>')
 def game_details(game_id):
     game_data = None
-    steam_data = None # Pour stocker les images et le trailer
+    steam_data = None
+    
     try:
-        # Récupération des infos CheapShark
-        r = requests.get("https://www.cheapshark.com/api/1.0/games", params={"id": game_id})
+        r = requests.get("https://www.cheapshark.com/api/1.0/games", params={"id": game_id}, timeout=5)
         if r.status_code == 200:
-            game_data = r.json()
-            
-            # Si le jeu a un ID Steam, on va chercher le trailer et les images chez Steam !
-            steam_id = game_data.get('info', {}).get('steamAppID')
-            if steam_id:
-                r_steam = requests.get(f"https://store.steampowered.com/api/appdetails?appids={steam_id}", timeout=3)
-                if r_steam.status_code == 200:
-                    steam_json = r_steam.json()
-                    # L'API Steam est un peu spéciale, il faut vérifier que le "success" est à True
-                    if steam_json.get(steam_id, {}).get('success'):
-                        steam_data = steam_json[steam_id]['data']
-    except:
-        pass
+            data = r.json()
+            if data: # On s'assure que Cheapshark a bien trouvé le jeu
+                game_data = data
+                
+                # Récupération sécurisée de l'ID Steam
+                steam_id = game_data.get('info', {}).get('steamAppID')
+                if steam_id:
+                    steam_id_str = str(steam_id) # On force en format texte pour éviter les bugs JSON
+                    r_steam = requests.get(f"https://store.steampowered.com/api/appdetails?appids={steam_id_str}", timeout=3)
+                    
+                    if r_steam.status_code == 200:
+                        steam_json = r_steam.json()
+                        # On vérifie que la requête Steam a réussi avant d'extraire les datas
+                        if steam_json and steam_json.get(steam_id_str, {}).get('success'):
+                            steam_data = steam_json.get(steam_id_str, {}).get('data')
+    except Exception as e:
+        print(f"Erreur de chargement du jeu : {e}")
     
     return render_template('game_details.html', game=game_data, stores=STORES_MAP, steam_data=steam_data)
 
