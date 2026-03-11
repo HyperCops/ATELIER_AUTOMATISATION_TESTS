@@ -99,11 +99,3 @@
     </div>
 
     {% set results = deals if deals else trending %}
-
-    {% if results %}
-        <h4 class="mb-4 border-bottom border-secondary pb-2">
-            {% if deals %} Résultats de la recherche ({{ deals|length }}) {% else %} 🔥 Offres populaires du moment {% endif %}
-        </h4>
-        
-        <div class="row">
-            {%
