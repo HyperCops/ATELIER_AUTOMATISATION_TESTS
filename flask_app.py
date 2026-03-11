@@ -31,9 +31,10 @@ except:
 def to_eur_filter(usd_price):
     try:
         eur_price = float(usd_price) * EXCHANGE_RATE
-        return f"{eur_price:.2f}"
+        # Formate avec 2 chiffres après la virgule, et remplace le point par une virgule
+        return f"{eur_price:.2f}".replace('.', ',')
     except:
-        return usd_price
+        return str(usd_price).replace('.', ',')
 
 @app.route("/")
 def home():
@@ -66,18 +67,15 @@ def game_details(game_id):
         r = requests.get("https://www.cheapshark.com/api/1.0/games", params={"id": game_id}, timeout=5)
         if r.status_code == 200:
             data = r.json()
-            if data: # On s'assure que Cheapshark a bien trouvé le jeu
+            if data: 
                 game_data = data
-                
-                # Récupération sécurisée de l'ID Steam
                 steam_id = game_data.get('info', {}).get('steamAppID')
                 if steam_id:
-                    steam_id_str = str(steam_id) # On force en format texte pour éviter les bugs JSON
+                    steam_id_str = str(steam_id) 
                     r_steam = requests.get(f"https://store.steampowered.com/api/appdetails?appids={steam_id_str}", timeout=3)
                     
                     if r_steam.status_code == 200:
                         steam_json = r_steam.json()
-                        # On vérifie que la requête Steam a réussi avant d'extraire les datas
                         if steam_json and steam_json.get(steam_id_str, {}).get('success'):
                             steam_data = steam_json.get(steam_id_str, {}).get('data')
     except Exception as e:
