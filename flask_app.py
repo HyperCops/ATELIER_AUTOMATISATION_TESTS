@@ -1,97 +1,139 @@
-import os
-import requests
-import traceback
-from flask import Flask, render_template, jsonify, request
-import storage
-from tester.runner import run_all_tests
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Recherche de Jeux Avancée</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/darkly/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: radial-gradient(circle at top, #2b2b45, #12121c);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+        .navbar {
+            background: rgba(26, 26, 46, 0.9) !important;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .game-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        .game-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
+            border-color: #0dcaf0;
+        }
+        .hero-banner {
+            background: linear-gradient(135deg, rgba(13,202,240,0.1) 0%, rgba(26,26,46,0) 100%);
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid rgba(13,202,240,0.2);
+        }
+        .score-badge {
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+  <div class="container">
+    <a class="navbar-brand fw-bold" href="/">🦈 CheapShark App</a>
+    <div class="navbar-nav">
+        <a class="nav-link" href="/">Accueil</a>
+        <a class="nav-link active" href="/search">Recherche</a>
+        <a class="nav-link" href="/dashboard">Dashboard Tests</a>
+    </div>
+  </div>
+</nav>
 
-app = Flask(__name__)
+<div class="container pb-5">
 
-if not os.path.exists(storage.DB_FILE):
-    storage.init_db()
-
-STORES_MAP = {}
-# On se fait passer pour un vrai navigateur web (Chrome/Mac) pour éviter d'être bloqué par l'API
-HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'}
-
-try:
-    r = requests.get("https://www.cheapshark.com/api/1.0/stores", headers=HEADERS, timeout=5)
-    if r.status_code == 200:
-        for store in r.json():
-            STORES_MAP[store['storeID']] = store['storeName']
-except:
-    pass
-
-@app.route("/")
-def home():
-    try:
-        return render_template('index.html')
-    except Exception as e:
-        return f"<h3 style='color:red;'>Erreur Accueil : {e}</h3>"
-
-@app.route('/dashboard')
-def dashboard():
-    runs = storage.get_runs()
-    return render_template('dashboard.html', runs=runs)
-
-@app.route('/search', methods=['GET', 'POST'])
-def search_games():
-    try:
-        deals = []
-        trending_deals = []
-        api_error = ""
-        is_post = (request.method == 'POST')
-        
-        if is_post:
-            # Nettoyage des paramètres vides pour ne pas faire planter l'API
-            title = request.form.get('title', '').strip()
-            max_price = request.form.get('max_price', '').strip()
-            store_id = request.form.get('store_id', '').strip()
-            sort_by = request.form.get('sort_by', '').strip()
-            min_metacritic = request.form.get('min_metacritic', '').strip()
-            
-            params = {"limit": 24}
-            if title: params['title'] = title
-            if max_price: params['upperPrice'] = max_price
-            if store_id: params['storeID'] = store_id
-            if sort_by: params['sortBy'] = sort_by
-            if min_metacritic: params['metacritic'] = min_metacritic
-            
-            r = requests.get("https://www.cheapshark.com/api/1.0/deals", params=params, headers=HEADERS, timeout=5)
-            if r.status_code == 200:
-                deals = r.json()
-            else:
-                api_error = f"Erreur Recherche API ({r.status_code})"
-
-        # Si c'est un accès normal (GET) OU si la recherche n'a rien donné, on charge les tendances
-        if not is_post or not deals:
-            r_trend = requests.get("https://www.cheapshark.com/api/1.0/deals", params={"sortBy": "Deal Rating", "limit": 8}, headers=HEADERS, timeout=5)
-            if r_trend.status_code == 200:
-                trending_deals = r_trend.json()
-            else:
-                api_error += f" Erreur Tendances API ({r_trend.status_code})"
-
-        return render_template('search.html', deals=deals, trending=trending_deals, stores=STORES_MAP, api_error=api_error, is_post=is_post)
+    {% if api_error %}
+        <div class="alert alert-danger shadow-sm mb-4">
+            <strong>Attention :</strong> Problème de communication avec CheapShark ({{ api_error }}). Les données peuvent être incomplètes.
+        </div>
+    {% endif %}
     
-    except Exception as e:
-        error_trace = traceback.format_exc()
-        return f"<h3>Erreur Python dans la recherche :</h3><pre>{error_trace}</pre>"
+    <div class="hero-banner mb-5">
+        <h3 class="mb-4 text-info fw-bold text-center">Recherche Avancée</h3>
+        <form method="POST" action="/search" class="row g-3">
+            <div class="col-md-12">
+                <input type="text" name="title" class="form-control form-control-lg bg-dark text-light border-secondary" placeholder="Titre du jeu (ex: Batman, Elden Ring)...">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted small">Prix Max ($)</label>
+                <input type="number" step="1" name="max_price" class="form-control bg-dark text-light border-secondary" placeholder="ex: 15">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted small">Boutique</label>
+                <select name="store_id" class="form-select bg-dark text-light border-secondary">
+                    <option value="">Toutes les boutiques</option>
+                    {% for sid, sname in stores.items() %}
+                        <option value="{{ sid }}">{{ sname }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted small">Trier par</label>
+                <select name="sort_by" class="form-select bg-dark text-light border-secondary">
+                    <option value="Deal Rating">Meilleure offre (Défaut)</option>
+                    <option value="Price">Prix le plus bas</option>
+                    <option value="Savings">Plus grosse réduction</option>
+                    <option value="Metacritic">Note Metacritic</option>
+                    <option value="Release">Date de sortie</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted small">Score Metacritic Min.</label>
+                <input type="number" name="min_metacritic" class="form-control bg-dark text-light border-secondary" placeholder="ex: 80">
+            </div>
+            <div class="col-md-12 text-center mt-4">
+                <button type="submit" class="btn btn-info btn-lg fw-bold px-5">Filtrer les offres</button>
+            </div>
+        </form>
+    </div>
 
-@app.route('/game/<game_id>')
-def game_details(game_id):
-    try:
-        game_data = None
-        steam_data = None
+    {% set results = deals if deals else trending %}
+
+    {% if results %}
+        <h4 class="mb-4 border-bottom border-secondary pb-2">
+            {% if is_post and deals %} Résultats de la recherche ({{ deals|length }}) {% else %} 🔥 Offres populaires du moment {% endif %}
+        </h4>
         
-        r = requests.get("https://www.cheapshark.com/api/1.0/games", params={"id": game_id}, headers=HEADERS, timeout=5)
-        if r.status_code == 200:
-            data = r.json()
-            if data: 
-                game_data = data
-                steam_id = game_data.get('info', {}).get('steamAppID')
-                if steam_id:
-                    steam_id_str = str(steam_id) 
-                    r_steam = requests.get(f"https://store.steampowered.com/api/appdetails?appids={steam_id_str}", headers=HEADERS, timeout=3)
-                    if r_steam.status_code == 200:
-                        steam_json = r_steam.json()
-                        if
+        <div class="row">
+            {% for deal in results %}
+            <div class="col-md-3 mb-4">
+                <div class="card h-100 game-card text-center position-relative">
+                    
+                    {% set savings = deal.get('savings') %}
+                    {% if savings and savings != '0.000000' %}
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger fs-6 border border-dark">
+                            -{{ (savings|string).split('.')[0] }}%
+                        </span>
+                    {% endif %}
+
+                    <img src="{{ deal.get('thumb', '') }}" class="card-img-top mx-auto mt-3 rounded" alt="Cover" style="height: 120px; width: auto; max-width: 90%; object-fit: contain;">
+                    
+                    <div class="card-body d-flex flex-column">
+                        <h6 class="card-title text-light mb-3">{{ deal.get('title', 'Titre inconnu') }}</h6>
+                        
+                        <div class="mb-3">
+                            {% if deal.get('metacriticScore') and deal.get('metacriticScore') != '0' %}
+                                {% set meta = deal.get('metacriticScore')|int %}
+                                {% set m_color = 'success' if meta >= 80 else ('warning' if meta >= 60 else 'danger') %}
+                                <span class="badge bg-{{ m_color }} score-badge me-1" title="Note Metacritic">Ⓜ️ {{ meta }}</span>
+                            {% endif %}
+                            
+                            {% if deal.get('steamRatingPercent') and deal.get('steamRatingPercent') != '0' %}
+                                {% set steam = deal.get('steamRatingPercent')|int %}
+                                {% set s_color = 'success' if steam >= 80 else ('warning' if steam >= 60 else 'danger') %}
+                                <span class="badge bg-{{ s_color }} score-badge" title="Avis positifs Steam">💨 {{ steam }}%</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="
