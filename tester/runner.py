@@ -11,20 +11,23 @@ def calculate_p95(latencies):
 def run_all_tests():
     client = APIClient()
     
-    # Liste des tests à exécuter
+    # Liste des 9 tests à exécuter
     test_funcs = [
         tests.test_deals_status_200,
         tests.test_deals_content_type,
         tests.test_deals_schema,
         tests.test_deals_types,
         tests.test_game_missing_id_400,
-        tests.test_invalid_endpoint_404
+        tests.test_invalid_endpoint_404,
+        tests.test_functional_upper_price,
+        tests.test_functional_game_lookup,
+        tests.test_functional_store_filter
     ]
     
     results = []
     latencies = []
     failed = 0
-    errors_5xx = 0 # Pour le calcul du taux d'erreur
+    errors_5xx = 0
 
     for func in test_funcs:
         try:
@@ -35,6 +38,8 @@ def run_all_tests():
                 errors_5xx += 1
         except Exception as e:
             failed += 1
+            # Si le test échoue, on ajoute une latence par défaut pour ne pas fausser le calcul
+            latencies.append(0.5) 
             results.append({"test": func.__name__, "status": "FAIL", "error": str(e)})
 
     total = len(test_funcs)
@@ -42,9 +47,7 @@ def run_all_tests():
     avg_latency = round(sum(latencies) / len(latencies), 3) if latencies else 0.0
     p95_latency = calculate_p95(latencies)
     
-    # Taux d'erreur (requêtes ayant échouées ou renvoyé 5xx)
     error_rate = round(((failed + errors_5xx) / total) * 100, 2)
-    # Disponibilité du dernier run (API joignable et répondant aux attentes minimales)
     is_available = (error_rate < 50) 
 
     stats = {
@@ -53,7 +56,6 @@ def run_all_tests():
         "error_rate": error_rate, "is_available": is_available
     }
     
-    # Sauvegarder dans SQLite
     storage.save_run(stats)
     
     return {"stats": stats, "details": results}
