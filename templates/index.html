@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>CheapShark - Accueil</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/darkly/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+  <div class="container">
+    <a class="navbar-brand" href="/">🦈 CheapShark App</a>
+  </div>
+</nav>
+
+<div class="container mt-5 text-center">
+    <h1 class="mb-4">Bienvenue sur l'interface CheapShark</h1>
+    <p class="lead mb-5">Que souhaitez-vous faire aujourd'hui ?</p>
+    
+    <div class="row justify-content-center">
+        <div class="col-md-4 mb-3">
+            <div class="card border-info h-100">
+                <div class="card-body d-flex flex-column">
+                    <h3 class="card-title text-info">🎮 Chercher un jeu</h3>
+                    <p class="card-text">Utilisez l'API en direct pour trouver les meilleures promotions sur vos jeux préférés.</p>
+                    <a href="/search" class="btn btn-info mt-auto">Rechercher</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="card border-success h-100">
+                <div class="card-body d-flex flex-column">
+                    <h3 class="card-title text-success">⚙️ Dashboard QoS</h3>
+                    <p class="card-text">Consultez l'historique des tests automatisés (contrat, robustesse, métier) de l'API.</p>
+                    <a href="/dashboard" class="btn btn-success mt-auto">Voir les Tests</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
