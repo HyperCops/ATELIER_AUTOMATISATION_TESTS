@@ -44,3 +44,39 @@ def test_invalid_endpoint_404(client):
     res, lat, err = client.get("/nexiste_pas_12345")
     assert res.status_code == 404, f"On attendait 404, on a eu {res.status_code}"
     return lat, res
+
+def test_functional_upper_price(client):
+    """Test 7: Fonctionnel - Le filtre 'upperPrice' fonctionne-t-il ?"""
+    res, lat, err = client.get("/deals", params={"upperPrice": "5"})
+    assert res.status_code == 200, "L'API n'a pas répondu 200"
+    
+    deals = res.json()
+    assert len(deals) > 0, "Aucun deal retourné"
+    
+    for deal in deals:
+        prix = float(deal["salePrice"])
+        assert prix <= 5.0, f"Erreur métier: un jeu à {prix}$ a été retourné alors que la limite est de 5$"
+    return lat, res
+
+def test_functional_game_lookup(client):
+    """Test 8: Fonctionnel - Les données d'un jeu spécifique sont-elles exactes ?"""
+    # L'ID 612 correspond à 'Batman: Arkham Asylum'
+    res, lat, err = client.get("/games", params={"id": "612"})
+    assert res.status_code == 200, "L'API n'a pas répondu 200"
+    
+    data = res.json()
+    titre = data.get("info", {}).get("title", "")
+    assert "Batman" in titre, f"Erreur métier: Le jeu attendu était Batman, on a reçu {titre}"
+    return lat, res
+
+def test_functional_store_filter(client):
+    """Test 9: Fonctionnel - Le filtre par magasin (storeID) est-il respecté ?"""
+    res, lat, err = client.get("/deals", params={"storeID": "1"})
+    assert res.status_code == 200, "L'API n'a pas répondu 200"
+    
+    deals = res.json()
+    assert len(deals) > 0, "Aucun deal retourné"
+    
+    for deal in deals:
+        assert deal["storeID"] == "1", f"Erreur métier: Un deal du store {deal['storeID']} a fuité"
+    return lat, res
