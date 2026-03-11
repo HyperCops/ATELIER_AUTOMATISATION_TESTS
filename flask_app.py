@@ -6,47 +6,59 @@ from tester.runner import run_all_tests
 
 app = Flask(__name__)
 
-# Initialiser la base de données SQLite au démarrage si elle n'existe pas
+# Initialiser la base de données SQLite au démarrage
 if not os.path.exists(storage.DB_FILE):
     storage.init_db()
 
+# Au démarrage, on récupère la liste des magasins (Steam, Epic, GOG...) pour traduire les ID
+STORES_MAP = {}
+try:
+    r = requests.get("https://www.cheapshark.com/api/1.0/stores")
+    if r.status_code == 200:
+        for store in r.json():
+            STORES_MAP[store['storeID']] = store['storeName']
+except:
+    pass
+
 @app.route("/")
 def home():
-    # Page d'accueil avec tous les liens
     return render_template('index.html')
 
 @app.route('/dashboard')
 def dashboard():
-    # Route pour afficher les résultats de tests
     runs = storage.get_runs()
     return render_template('dashboard.html', runs=runs)
 
 @app.route('/search', methods=['GET', 'POST'])
 def search_games():
-    # Nouvelle route pour chercher des jeux manuellement !
-    deals = []
+    games = []
     if request.method == 'POST':
         title = request.form.get('title')
-        max_price = request.form.get('max_price')
-        
-        # On prépare les paramètres pour l'API CheapShark
-        params = {}
-        if title: params['title'] = title
-        if max_price: params['upperPrice'] = max_price
-        
         try:
-            # On appelle l'API en direct pour l'utilisateur
-            r = requests.get("https://www.cheapshark.com/api/1.0/deals", params=params)
+            # On cherche des JEUX uniques, pas des deals en vrac
+            r = requests.get("https://www.cheapshark.com/api/1.0/games", params={"title": title, "limit": 20})
             if r.status_code == 200:
-                deals = r.json()
+                games = r.json()
         except:
-            pass # En cas d'erreur de connexion, on renvoie une liste vide
+            pass
 
-    return render_template('search.html', deals=deals)
+    return render_template('search.html', games=games)
+
+@app.route('/game/<game_id>')
+def game_details(game_id):
+    # Nouvelle route : Récupère toutes les offres pour un jeu précis
+    game_data = None
+    try:
+        r = requests.get("https://www.cheapshark.com/api/1.0/games", params={"id": game_id})
+        if r.status_code == 200:
+            game_data = r.json()
+    except:
+        pass
+    
+    return render_template('game_details.html', game=game_data, stores=STORES_MAP)
 
 @app.route('/run')
 def trigger_run():
-    # Déclenche un test manuel et renvoie du JSON
     summary = run_all_tests()
     return jsonify(summary)
 
